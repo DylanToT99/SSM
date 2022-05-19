@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/aop
+       http://www.springframework.org/schema/aop/spring-aop.xsd
+       http://www.springframework.org/schema/tx
+       http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+<!--spring的配资文件-->
+<!--数据源,事务控制等等 -->
+<!--引入配置文件-->
+    <!-- 扫描组件-->
+    <context:component-scan base-package="com.dylan.crud">
+        <!--控制器交给springmvc扫描,其他的组件给咱!-->
+        <!--<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>-->
+    </context:component-scan>
+    <!--读入数据库配置文件-->
+    <context:property-placeholder location="classpath:jdbc.properties"></context:property-placeholder>
+    <!--使用数据库连接池,并创建连接-->
+    <bean id="ComboPooledDataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+    <property name="jdbcUrl" value="${jdbc.jdbcUrl}"></property>
+    <property name="driverClass" value="${jdbc.driverClass}"></property>
+    <property name="user" value="${jdbc.user}"></property>
+    <property name="password" value="${jdbc.password}"></property>
+    </bean>
+    <!--配置与mybatis的整合-->
+    <bean id="SqlSessionFactoryBean" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--指定mybatis全局配置文件的位置-->
+        <property name="configLocation" value="classpath:mybatis-config.xml"></property>
+        <property name="dataSource" ref="ComboPooledDataSource"></property>
+        <!--指定mybatis的mapper文件的位置-->
+        <property name="mapperLocations" value="classpath:mapper/*.xml"></property>
+    </bean>
+    <!--    配置扫描器,叫mybatis接口的实现加入到ioc容器中-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!--扫描所有dao接口的实现,加入到ioc容器中-->
+        <property name="basePackage" value="com.dylan.crud.dao"></property>
+    </bean>
+    <!--    事务控制的配置-->
+   <bean class="org.springframework.jdbc.datasource.DataSourceTransactionManager" id="DataSourceTransactionManager">
+   <!--    控制住数据源-->
+       <property name="dataSource" ref="ComboPooledDataSource"></property>
+   </bean>
+    <!--    开启基于注解的事务,使用xml配置形式的事务(主要的都是使用配置式)-->
+    <aop:config>
+        <aop:pointcut id="txPoint" expression="execution(* com.dylan.crud.service..*(..))"/>
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="txPoint"></aop:advisor>
+    </aop:config>
+    <!--配置事务增强,事务如何切入-->
+    <tx:advice id="txAdvice" transaction-manager="DataSourceTransactionManager">
+        <tx:attributes>
+            <!--所有方法都是事务方法-->
+            <tx:method name="*"></tx:method>
+            <!--以get开始的所有方法-->
+            <tx:method name="get*"></tx:method>
+        </tx:attributes>
+    </tx:advice>
+<!--    配置一个可以执行批量操作的sqlsession-->
+    <bean id="SqlSessionTemplate" class="org.mybatis.spring.SqlSessionTemplate">
+        <constructor-arg name="sqlSessionFactory" ref="SqlSessionFactoryBean">
+        </constructor-arg>
+        <constructor-arg name="executorType" value="BATCH"></constructor-arg>
+    </bean>
+</beans>
